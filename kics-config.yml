@@ -1,0 +1,26 @@
+# Config options can be found here - https://docs.kics.io/latest/commands/
+
+log-file: true
+log-level: INFO
+log-path: logs/kics.log
+minimal-ui: true
+no-color: true
+
+output-name: kics_report
+output-path: reports
+
+report-formats: json,html
+fail-on: high
+type:
+  - Kubernetes
+  - CloudFormation
+
+exclude-results:
+  # NFS port is required in the security group for EKS and EFS to communicate
+  - ebe377dcb66f6ab6e27de188ec990b427793371940626a2b8771f73003649eb6
+  # False positive on route table default route being 0.0.0.0/0
+  - fefc934a568b98861eb963dc463a5e54aa2b9769f5f767eb2467b9f113a5167f
+  - 1f75f6c8107c7c330bfcbcc9ba08a0f2f34f4c230fa3e38040d2a1a139ccb334
+  - 87490e1f810f30babfce58e57bcd88b41c92c65a847a279a2b18ec6d8b76a1f1
+  # Wildcard on Action is required so IAM can manage keys
+  - f5c26e75ad60253fa924bdd9ce4999f39c83e7cb7f95d0caea47c5714e396fcd

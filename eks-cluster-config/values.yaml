@@ -1,0 +1,39 @@
+# Default values for EKS cluster config.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+applicationName: bsee
+
+services:
+  webServer:
+    label: "app.portswigger.net/ingress: web-server"
+
+cluster-autoscaler:
+  awsRegion: eu-west-1
+  autoDiscovery:
+    clusterName: bsee-eks-cluster
+  resources:
+    limits:
+      cpu: 100m
+      memory: 300Mi
+    requests:
+      cpu: 100m
+      memory: 300Mi
+
+aws-efs-csi-driver:
+  controller:
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  node:
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi

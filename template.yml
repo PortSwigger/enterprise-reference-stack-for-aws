@@ -1,0 +1,649 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  FriendlyStackName:
+    Type: String
+    Description: A human-readable name for the stack that will be used to name all of the resources.
+    Default: bsee
+
+  VpcCidrBlock:
+    Type: String
+    Description: The CIDR block to be used by the VPC
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    ConstraintDescription: Please enter a valid CIDR IP range
+    Default: 10.0.0.0/16
+
+  VpcFlowLogRetentionInDays:
+    Description: Specifies the number of days you want to retain log events.
+    Type: Number
+    Default: 14
+
+  VpcFlowLogTrafficType:
+    Description: The type of traffic to log.
+    Type: String
+    Default: ALL
+    AllowedValues:
+      - ACCEPT
+      - REJECT
+      - ALL
+
+  PublicSubnetACidrBlock:
+    Type: String
+    Description: The CIDR block to be used by the public subnet in availability zone A
+    Default: 10.0.1.0/24
+
+  NodesSubnetACidrBlock:
+    Type: String
+    Description: The CIDR block to be used by the nodes subnet in availability zone A
+    Default: 10.0.11.0/24
+
+  NodesSubnetBCidrBlock:
+    Type: String
+    Description: The CIDR block to be used by the nodes subnet in availability zone B
+    Default: 10.0.12.0/24
+
+  KubernetesVersion:
+    Type: String
+    Description: The version of Kubernetes to use in the EKS cluster specified as major.minor e.g. 1.20
+    Default: 1.21
+
+  ClusterDiskSize:
+    Type: Number
+    Description: The disk size for each node in the EKS node group
+    Default: 30
+
+  ClusterNodeSize:
+    Type: String
+    Description: The type of nodes to place in the cluster
+    Default: m6i.xlarge
+    AllowedValues:
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - t3a.large
+      - t3a.xlarge
+      - t3a.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5a.large
+      - m5a.xlarge
+      - m5a.2xlarge
+      - m6i.large
+      - m6i.xlarge
+      - m6i.2xlarge
+
+  NodeGroupMinSize:
+    Type: Number
+    Description: The minimum size for the EKS node group
+    MinValue: 2
+    MaxValue: 100
+    Default: 2
+
+  NodeGroupMaxSize:
+    Type: Number
+    Description: The maximum size for the EKS node group
+    MinValue: 2
+    MaxValue: 100
+    Default: 10
+
+  NodeGroupDesiredSize:
+    Type: Number
+    Description: The desired size for the EKS node group
+    MinValue: 2
+    MaxValue: 100
+    Default: 2
+
+  DatabaseInstanceSize:
+    Type: String
+    Description: Database instance size when provisioning the database
+    Default: db.t3.large
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.t3.xlarge
+      - db.t3.2xlarge
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m5.xlarge
+      - db.m5.2xlarge
+
+  DatabaseStorageType:
+    Type: String
+    Description: Database storage type when provisioning the database
+    Default: gp2
+    AllowedValues:
+      - standard
+      - gp2
+      - io1
+
+  DatabaseDiskSize:
+    Type: Number
+    Description: The size of the database volume
+    Default: 100
+
+  DatabaseAdminUsername:
+    Type: String
+    Description: The database admin username for the new database
+    MaxLength: 16
+    AllowedPattern: (^$|^(?!admin$)[a-zA-Z][a-zA-Z0-9]{1,16}$)
+    ConstraintDescription: Please enter a valid database username (alphanumeric characters with max length 16 and no reserved keywords)
+    Default: postgres
+
+  DatabaseAdminPassword:
+    Type: String
+    Description: The database admin password for the new database
+    MaxLength: 128
+    AllowedPattern: (^$|[a-zA-Z0-9]{8,128}$)
+    ConstraintDescription: Please enter a valid database password (alphanumeric characters with min length 8), or leave blank if using a pre-existing database
+    NoEcho: true
+
+  DatabaseDeleteProtection:
+    Type: String
+    Description: Enable or disable delete protection on the RDS database
+    Default: true
+
+Resources:
+  #######
+  # KMS #
+  #######
+  SymmetricCmk:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: This KMS symmetric CMK is used to encrypt the data at rest in the AWS service used by this template
+      Enabled: True
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+
+  SymmetricCmkAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${FriendlyStackName}-Kms-Key
+      TargetKeyId: !Ref SymmetricCmk
+
+  #######
+  # IAM #
+  #######
+  KeyAdminPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub Policy for administering the ${FriendlyStackName}-kms-key
+      Path: /
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:Create* # candidate for removal as you probably can't create a key with the same ARN, need to check
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:TagResource*
+              - kms:UntagResource*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+            Resource: !GetAtt SymmetricCmk.Arn
+
+  KeyUsagePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub Policy for using the ${FriendlyStackName}KmsKey
+      Path: /
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Sid: UserAccess
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !GetAtt SymmetricCmk.Arn
+          - Effect: Allow
+            Sid: AwsAccess
+            Action:
+              - kms:CreateGrant
+              - kms:ListGrants
+              - kms:RevokeGrant
+            Resource: !GetAtt SymmetricCmk.Arn
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+
+  EfsUsagePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub Policy for using the ${FriendlyStackName} EFS access point
+      Path: /
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Sid: NodeAccess
+            Action:
+              - elasticfilesystem:*
+            Resource: "*"
+
+  EksAutoScalerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub Policy for auto-scaling the ${FriendlyStackName} EKS cluster
+      Path: /
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Sid: NodeAccess
+            Action:
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribeAutoScalingInstances
+              - autoscaling:DescribeLaunchConfigurations
+              - autoscaling:DescribeTags
+              - autoscaling:SetDesiredCapacity
+              - autoscaling:TerminateInstanceInAutoScalingGroup
+              - ec2:DescribeLaunchTemplateVersions
+            Resource: "*"
+
+  EksClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${FriendlyStackName}-eks-cluster-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        - !Ref KeyUsagePolicy
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-eks-cluster-role
+
+  EksNodeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${FriendlyStackName}-eks-node-instance-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - !Ref KeyUsagePolicy
+        - !Ref EfsUsagePolicy
+        - !Ref EksAutoScalerPolicy
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-eks-node-instance-role
+
+  VpcFlowLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "vpc-flow-logs.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "flowlogs-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: !GetAtt VpcFlowLogGroup.Arn
+
+  #################
+  # EC2 (Network) #
+  #################
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-vpc
+
+  VpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt VpcFlowLogRole.Arn
+      LogGroupName: !Ref VpcFlowLogGroup
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: !Ref VpcFlowLogTrafficType
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-internet-gateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-public-route-table
+
+  InternetGatewayRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: "AWS::Region"
+      CidrBlock: !Ref PublicSubnetACidrBlock
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  NatGatewayAEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-nat-gateway-a-eip
+
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayAEip.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-nat-gateway-a
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-private-route-table
+
+  NatGatewayARoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+
+  NodesSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: "AWS::Region"
+      CidrBlock: !Ref NodesSubnetACidrBlock
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-nodes-subnet-a
+      VpcId: !Ref VPC
+
+  NodesSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref NodesSubnetA
+
+  NodesSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: "AWS::Region"
+      CidrBlock: !Ref NodesSubnetBCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-nodes-subnet-b
+      VpcId: !Ref VPC
+
+  NodesSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref NodesSubnetB
+
+  #######
+  # EKS #
+  #######
+  EksCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Sub ${FriendlyStackName}-eks-cluster
+      ResourcesVpcConfig:
+        SubnetIds:
+          - !Ref NodesSubnetA
+          - !Ref NodesSubnetB
+      EncryptionConfig:
+        - Provider:
+            KeyArn: !GetAtt SymmetricCmk.Arn
+          Resources:
+            - secrets
+      RoleArn: !GetAtt EksClusterRole.Arn
+      Version: !Ref KubernetesVersion
+
+  EksNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName: !Ref EksCluster
+      DiskSize: !Ref ClusterDiskSize
+      InstanceTypes:
+        - !Ref ClusterNodeSize
+      NodeRole: !GetAtt EksNodeInstanceRole.Arn
+      ScalingConfig:
+        DesiredSize: !Ref NodeGroupDesiredSize
+        MinSize: !Ref NodeGroupMinSize
+        MaxSize: !Ref NodeGroupMaxSize
+      Subnets:
+        - !Ref NodesSubnetA
+        - !Ref NodesSubnetB
+
+  #######
+  # EFS #
+  #######
+  EfsFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      KmsKeyId: !GetAtt SymmetricCmk.Arn
+      Encrypted: true
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-efs-filesystem
+
+  EfsMountTargetA:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+      SubnetId: !Ref NodesSubnetA
+
+  EfsMountTargetB:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+      SubnetId: !Ref NodesSubnetB
+
+  EfsAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      PosixUser:
+        Uid: 1000
+        Gid: 1000
+      RootDirectory:
+        CreationInfo:
+          OwnerGid: 1000
+          OwnerUid: 1000
+          Permissions: "0755"
+        Path: /bsee
+
+  #######
+  # RDS #
+  #######
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for the database
+      DBSubnetGroupName: !Sub ${FriendlyStackName}-db-subnet-group
+      SubnetIds:
+        - !Ref NodesSubnetA
+        - !Ref NodesSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-db-subnet-group
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: !Ref DatabaseInstanceSize
+      AllocatedStorage: !Ref DatabaseDiskSize
+      StorageType: !Ref DatabaseStorageType
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      Engine: postgres
+      EngineVersion: "14.2"
+      MasterUsername: !Ref DatabaseAdminUsername
+      MasterUserPassword: !Ref DatabaseAdminPassword
+      DBInstanceIdentifier: !Sub ${FriendlyStackName}-db
+      StorageEncrypted: true
+      KmsKeyId: !GetAtt SymmetricCmk.Arn
+      DeletionProtection: !Ref DatabaseDeleteProtection
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-db
+
+  #########################
+  # EC2 (Security Groups) #
+  #########################
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${FriendlyStackName}-efs-security-group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          Description: Allows access to the efs service from the eks cluster
+          SourceSecurityGroupId: !GetAtt EksCluster.ClusterSecurityGroupId
+          FromPort: 2049
+          ToPort: 2049
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-efs-security-group
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${FriendlyStackName}-database-security-group
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          Description: Allows access to the rds service from the eks cluster
+          SourceSecurityGroupId: !GetAtt EksCluster.ClusterSecurityGroupId
+          FromPort: 5432
+          ToPort: 5432
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-database-security-group
+
+  ########
+  # Logs #
+  ########
+  VpcFlowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref VpcFlowLogRetentionInDays
+
+Outputs:
+  EfsVolumeHandle:
+    Description: The volumeHandle for the EFS CSI driver persistent volume definition
+    Value: !Sub
+      - "${FileSystemId}::${AccessPointId}"
+      - FileSystemId: !Ref EfsFileSystem
+        AccessPointId: !Ref EfsAccessPoint
+  EksClusterName:
+    Description: The name of the EKS cluster
+    Value: !Ref EksCluster
+  EksNodeGroupArn:
+    Description: The ARN of the EKS NodeGroup
+    Value: !GetAtt EksNodeGroup.Arn
+  DatabaseHost:
+    Description: The host address of the database
+    Value: !GetAtt Database.Endpoint.Address
+  DatabasePort:
+    Description: The TCP port of the database
+    Value: !GetAtt Database.Endpoint.Port

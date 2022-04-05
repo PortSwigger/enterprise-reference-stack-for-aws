@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.applicationName }}-pvc
+  labels:
+    app.kubernetes.io/name: {{ .Values.applicationName }}-pvc
+    app.kubernetes.io/component: cluster
+    app.kubernetes.io/part-of: {{ .Values.applicationName }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 1Gi
