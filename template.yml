@@ -574,7 +574,7 @@ Resources:
       VPCSecurityGroups:
         - !Ref DatabaseSecurityGroup
       Engine: postgres
-      EngineVersion: "14.2"
+      EngineVersion: "15.2"
       MasterUsername: !Ref DatabaseAdminUsername
       MasterUserPassword: !Ref DatabaseAdminPassword
       DBInstanceIdentifier: !Sub ${FriendlyStackName}-db
