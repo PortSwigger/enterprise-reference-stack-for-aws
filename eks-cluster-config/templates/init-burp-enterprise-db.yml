@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: psql-init
-          image: postgres:12
+          image: postgres:15
           env:
             - name: POSTGRES_USER
               value: {{ .Values.database.postgresUser }}
@@ -28,7 +28,6 @@ spec:
              echo "SELECT 'CREATE USER {{ .Values.database.scanningResourceUsername }} PASSWORD ''{{ .Values.database.scanningResourcePassword }}''' WHERE NOT EXISTS (SELECT FROM pg_user WHERE usename = '{{ .Values.database.scanningResourceUsername }}')\gexec" | psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U $POSTGRES_USER -d postgres
              echo "SELECT 'CREATE DATABASE {{ .Values.database.name }}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ .Values.database.name }}')\gexec" | psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U $POSTGRES_USER -d postgres
              echo "GRANT ALL ON DATABASE {{ .Values.database.name }} TO {{ .Values.database.enterpriseServerUsername }}" | psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U $POSTGRES_USER -d postgres
-             echo "\c burp_enterprise postgres" | psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U $POSTGRES_USER -d postgres
-             echo "GRANT ALL ON SCHEMA public TO {{ .Values.database.enterpriseServerUsername }}" | psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U $POSTGRES_USER -d postgres
+             echo "GRANT ALL ON SCHEMA public TO {{ .Values.database.enterpriseServerUsername }}" | psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U $POSTGRES_USER -d {{ .Values.database.name }}
              echo "...database initialised"
       restartPolicy: OnFailure
