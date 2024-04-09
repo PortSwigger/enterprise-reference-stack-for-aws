@@ -45,7 +45,7 @@ Parameters:
   KubernetesVersion:
     Type: String
     Description: The version of Kubernetes to use in the EKS cluster specified as major.minor e.g. 1.20
-    Default: 1.24
+    Default: 1.29
 
   ClusterDiskSize:
     Type: Number
@@ -497,6 +497,7 @@ Resources:
       LaunchTemplateName: !Sub ${FriendlyStackName}-eks-node-launch-template
       LaunchTemplateData:
         MetadataOptions:
+          HttpPutResponseHopLimit: 1
           HttpTokens: required
         BlockDeviceMappings:
           - Ebs:
