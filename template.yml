@@ -497,7 +497,7 @@ Resources:
       LaunchTemplateName: !Sub ${FriendlyStackName}-eks-node-launch-template
       LaunchTemplateData:
         MetadataOptions:
-          HttpPutResponseHopLimit: 1
+          HttpPutResponseHopLimit: 2
           HttpTokens: required
         BlockDeviceMappings:
           - Ebs:
