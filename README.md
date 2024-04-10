@@ -123,7 +123,16 @@ needed, so that it may be tailored to any specific context.
 
 By default, AWS makes the control plane (Kubernetes API) for EKS clusters __available to the internet__ and secures them using IAM.
 If this is not appropriate for your organisation's risk appetite, then you will need to switch access to private and provide appropriate routing.
-See [Infrastructure security in Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/infrastructure-security.html) for AWS recommendations.
+
+See [Infrastructure security in Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/infrastructure-security.html) for recommendations from AWS.
+
+#### Consider adding tighter access controls on EKS nodes
+
+The launch-template for EKS nodes disables access to IMDSv1, to avoid pods from having access to the EKS node metadata.
+
+You should consider whether additional restrictions are required, to prevent unintended access to systems or functionality on your network.
+
+See [Restrict the use of host networking and block access to instance metadata service](https://docs.aws.amazon.com/whitepapers/latest/security-practices-multi-tenant-saas-applications-eks/restrict-the-use-of-host-networking-and-block-access-to-instance-metadata-service.html) for recommendations from AWS.
 
 #### Internet Access
 

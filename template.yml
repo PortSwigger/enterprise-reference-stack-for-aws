@@ -45,7 +45,7 @@ Parameters:
   KubernetesVersion:
     Type: String
     Description: The version of Kubernetes to use in the EKS cluster specified as major.minor e.g. 1.20
-    Default: 1.24
+    Default: 1.29
 
   ClusterDiskSize:
     Type: Number
@@ -491,11 +491,26 @@ Resources:
       RoleArn: !GetAtt EksClusterRole.Arn
       Version: !Ref KubernetesVersion
 
+  EksNodeLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${FriendlyStackName}-eks-node-launch-template
+      LaunchTemplateData:
+        MetadataOptions:
+          HttpPutResponseHopLimit: 2
+          HttpTokens: required
+        BlockDeviceMappings:
+          - Ebs:
+              VolumeSize: !Ref ClusterDiskSize
+              VolumeType: gp2
+              DeleteOnTermination: true
+              Encrypted: false
+            DeviceName: /dev/xvda
+
   EksNodeGroup:
     Type: AWS::EKS::Nodegroup
     Properties:
       ClusterName: !Ref EksCluster
-      DiskSize: !Ref ClusterDiskSize
       InstanceTypes:
         - !Ref ClusterNodeSize
       NodeRole: !GetAtt EksNodeInstanceRole.Arn
@@ -506,6 +521,8 @@ Resources:
       Subnets:
         - !Ref NodesSubnetA
         - !Ref NodesSubnetB
+      LaunchTemplate:
+        Id: !Ref EksNodeLaunchTemplate
 
   #######
   # EFS #
