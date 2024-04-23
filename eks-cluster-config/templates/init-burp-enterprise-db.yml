@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: psql-init
-          image: postgres:15
+          image: postgres:16
           env:
             - name: POSTGRES_USER
               value: {{ .Values.database.postgresUser }}
