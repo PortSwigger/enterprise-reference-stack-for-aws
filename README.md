@@ -126,13 +126,17 @@ If this is not appropriate for your organisation's risk appetite, then you will 
 
 See [Infrastructure security in Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/infrastructure-security.html) for recommendations from AWS.
 
-#### Consider adding tighter access controls on EKS nodes
+#### Consider adding tighter access controls on EKS nodes and pods
 
-The launch-template for EKS nodes disables access to IMDSv1, to avoid pods from having access to the EKS node metadata.
+The launch template for EKS nodes restricts access to IMDSv1 to prevent pods from accessing the metadata of the EKS nodes.
 
-You should consider whether additional restrictions are required, to prevent unintended access to systems or functionality on your network.
+We recommend you assess if additional restrictions are necessary for your EKS nodes and pods, in order to secure your network.
 
 See [Restrict the use of host networking and block access to instance metadata service](https://docs.aws.amazon.com/whitepapers/latest/security-practices-multi-tenant-saas-applications-eks/restrict-the-use-of-host-networking-and-block-access-to-instance-metadata-service.html) for recommendations from AWS.
+
+The diagram below outlines the architecture of Burp Suite Enterprise Edition deployed on a Kubernetes cluster. We recommend you configure pods with only the minimal level of access they need, using a security policy or an equivalent method.
+
+![Kubernetes Component Connections diagram](k8s-component-connections.jpg "Kubernetes Component Connections diagram")
 
 #### Internet Access
 
