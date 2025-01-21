@@ -162,6 +162,7 @@ The Cluster Configuration installs the Kubernetes resources that are prerequisit
 * [AWS EFS CSI driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver).
 * [Kubernetes cluster-autoscaler](https://github.com/kubernetes/autoscaler/tree/master/charts/cluster-autoscaler).
 * A [PersistentVolume](eks-cluster-config/templates/persistent-volume.yml) and [PersistentVolumeClaim](eks-cluster-config/templates/persistent-volume-claim.yml) using the EFS driver.
+* A LoadBalancer service that provisions an AWS load balancer to enable external access to Burp Suite Enterprise Edition (once deployed).
 
 The [Helm chart](eks-cluster-config/Chart.yaml) also initialises the database and database users as a one-off task.
 
@@ -169,6 +170,9 @@ The chart accepts the following parameters:
 
 |Parameter Name|Description|Default Value|
 |--------------|-----------|-------------|
+| applicationName | The name of the application, used to prefix Kubernetes resources like the ingress service | bsee |
 | volumeHandle | The ID of the EFS FileSystem (can be found in the outputs of the CloudFormation template) | |
 | cluster-autoscaler.autoDiscovery.clusterName | The name of the EKS cluster (can be found in the outputs of the CloudFormation template) | bsee-eks-cluster | 
 | cluster-autoscaler.awsRegion | The region of the EKS cluster | eu-west-1 |
+| services.webServer.label | The label used for the ingress service to route traffic to the Burp Suite Enterprise Edition web server | app.portswigger.net/ingress: web-server |
+
