@@ -1,8 +1,8 @@
-# AWS Reference Stack Implementation for Burp Suite Enterprise Edition
+# AWS Reference Stack Implementation for Burp Suite DAST
 
-The AWS reference stack implementation for Burp Suite Enterprise Edition is an opinionated quick start template that
+The AWS reference stack implementation for Burp Suite DAST is an opinionated quick start template that
 provisions a managed Kubernetes cluster ([EKS](https://aws.amazon.com/eks)) and prepares it for deployment of the Burp
-Suite Enterprise Edition application. The reference stack also provisions a PostgreSQL database for convenience.
+Suite DAST application. The reference stack also provisions a PostgreSQL database for convenience.
 
 __This reference implementation is provided under the [Apache 2.0](LICENSE) license without warranty or liability.__
 
@@ -84,7 +84,7 @@ echo "Database URL : jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATAB
 ## Infrastructure Definition (CloudFormation template)
 
 The Infrastructure Definition declares the network, compute, storage and database resources needed to support the
-Burp Suite Enterprise Edition application. This includes a VPC, EKS Cluster, EFS FileSystem, RDS Instance and
+Burp Suite DAST application. This includes a VPC, EKS Cluster, EFS FileSystem, RDS Instance and
 supporting network and security resources.
 
 ![CloudFormation diagram](cfn-diagram.png "CloudFormation diagram")
@@ -134,7 +134,7 @@ We recommend you assess if additional restrictions are necessary for your EKS no
 
 See [Restrict the use of host networking and block access to instance metadata service](https://docs.aws.amazon.com/whitepapers/latest/security-practices-multi-tenant-saas-applications-eks/restrict-the-use-of-host-networking-and-block-access-to-instance-metadata-service.html) for recommendations from AWS.
 
-The diagram below outlines the architecture of Burp Suite Enterprise Edition deployed on a Kubernetes cluster. We recommend you configure pods with only the minimal level of access they need, using a security policy or an equivalent method.
+The diagram below outlines the architecture of Burp Suite DAST deployed on a Kubernetes cluster. We recommend you configure pods with only the minimal level of access they need, using a security policy or an equivalent method.
 
 ![Kubernetes Component Connections diagram](k8s-component-connections.jpg "Kubernetes Component Connections diagram")
 
@@ -156,13 +156,13 @@ The template creates two IAM policies: one for administering the key, and the ot
 
 ## Cluster Configuration (Helm chart)
 
-The Cluster Configuration installs the Kubernetes resources that are prerequisites to the Burp Suite Enterprise Edition application using a
+The Cluster Configuration installs the Kubernetes resources that are prerequisites to the Burp Suite DAST application using a
 [Helm chart](eks-cluster-config/Chart.yaml). In the case of AWS EKS, this includes:
 
 * [AWS EFS CSI driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver).
 * [Kubernetes cluster-autoscaler](https://github.com/kubernetes/autoscaler/tree/master/charts/cluster-autoscaler).
 * A [PersistentVolume](eks-cluster-config/templates/persistent-volume.yml) and [PersistentVolumeClaim](eks-cluster-config/templates/persistent-volume-claim.yml) using the EFS driver.
-* A LoadBalancer service that provisions an AWS load balancer to enable external access to Burp Suite Enterprise Edition (once deployed).
+* A LoadBalancer service that provisions an AWS load balancer to enable external access to Burp Suite DAST (once deployed).
 
 The [Helm chart](eks-cluster-config/Chart.yaml) also initialises the database and database users as a one-off task.
 
@@ -174,5 +174,5 @@ The chart accepts the following parameters:
 | volumeHandle | The ID of the EFS FileSystem (can be found in the outputs of the CloudFormation template) | |
 | cluster-autoscaler.autoDiscovery.clusterName | The name of the EKS cluster (can be found in the outputs of the CloudFormation template) | bsee-eks-cluster | 
 | cluster-autoscaler.awsRegion | The region of the EKS cluster | eu-west-1 |
-| services.webServer.label | The label used for the ingress service to route traffic to the Burp Suite Enterprise Edition web server | app.portswigger.net/ingress: web-server |
+| services.webServer.label | The label used for the ingress service to route traffic to the Burp Suite DAST web server | app.portswigger.net/ingress: web-server |
 
