@@ -160,7 +160,7 @@ The template creates two IAM policies: one for administering the key, and the ot
 The Cluster Configuration installs the Kubernetes resources that are prerequisites to the Burp Suite DAST application using a
 [Helm chart](eks-cluster-config/Chart.yaml). In the case of AWS EKS, this includes:
 
-* [AWS EFS CSI driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver).
+* AWS EFS CSI driver (installed as an [EKS managed add-on](https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html) via the CloudFormation template).
 * [Kubernetes cluster-autoscaler](https://github.com/kubernetes/autoscaler/tree/master/charts/cluster-autoscaler).
 * A [PersistentVolume](eks-cluster-config/templates/persistent-volume.yml) and [PersistentVolumeClaim](eks-cluster-config/templates/persistent-volume-claim.yml) using the EFS driver.
 * A LoadBalancer service that provisions an AWS load balancer to enable external access to Burp Suite DAST (once deployed).

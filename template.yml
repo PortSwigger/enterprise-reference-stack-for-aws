@@ -586,6 +586,12 @@ Resources:
       LaunchTemplate:
         Id: !Ref EksNodeLaunchTemplate
 
+  EfsCSIDriverAddon:
+    Type: AWS::EKS::Addon
+    Properties:
+      AddonName: aws-efs-csi-driver
+      ClusterName: !Ref EksCluster
+
   #######
   # EFS #
   #######
