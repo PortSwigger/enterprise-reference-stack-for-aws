@@ -32,6 +32,11 @@ Parameters:
     Description: The CIDR block to be used by the public subnet in availability zone A
     Default: 10.0.1.0/24
 
+  PublicSubnetBCidrBlock:
+    Type: String
+    Description: The CIDR block to be used by the public subnet in availability zone B
+    Default: 10.0.2.0/24
+
   NodesSubnetACidrBlock:
     Type: String
     Description: The CIDR block to be used by the nodes subnet in availability zone A
@@ -394,6 +399,9 @@ Resources:
           Ref: "AWS::Region"
       CidrBlock: !Ref PublicSubnetACidrBlock
       MapPublicIpOnLaunch: false
+      Tags:
+        - Key: kubernetes.io/role/elb
+          Value: "1"
       VpcId: !Ref VPC
 
   PublicSubnetARouteTableAssociation:
@@ -401,6 +409,26 @@ Resources:
     Properties:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: "AWS::Region"
+      CidrBlock: !Ref PublicSubnetBCidrBlock
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+      VpcId: !Ref VPC
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
 
   NatGatewayAEip:
     Type: AWS::EC2::EIP
@@ -419,6 +447,23 @@ Resources:
         - Key: Name
           Value: !Sub ${FriendlyStackName}-nat-gateway-a
 
+  NatGatewayBEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-nat-gateway-b-eip
+
+  NatGatewayB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayBEip.AllocationId
+      SubnetId: !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-nat-gateway-b
+
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -433,6 +478,21 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGatewayA
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${FriendlyStackName}-private-route-table-b
+
+  NatGatewayBRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayB
 
   NodesSubnetA:
     Type: AWS::EC2::Subnet
@@ -469,7 +529,7 @@ Resources:
   NodesSubnetBRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRouteTableB
       SubnetId: !Ref NodesSubnetB
 
   #######
@@ -489,6 +549,8 @@ Resources:
           Resources:
             - secrets
       RoleArn: !GetAtt EksClusterRole.Arn
+      UpgradePolicy:
+        SupportType: STANDARD
       Version: !Ref KubernetesVersion
 
   EksNodeLaunchTemplate:
