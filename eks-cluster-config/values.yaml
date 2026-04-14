@@ -19,21 +19,3 @@ cluster-autoscaler:
     requests:
       cpu: 100m
       memory: 300Mi
-
-aws-efs-csi-driver:
-  controller:
-    resources:
-      limits:
-        cpu: 200m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  node:
-    resources:
-      limits:
-        cpu: 200m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
