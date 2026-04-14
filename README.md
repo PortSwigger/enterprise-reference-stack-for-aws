@@ -102,7 +102,7 @@ is" with the default values or can be customised with the parameters below:
 | PublicSubnetBCidrBlock | The CIDR block to be used by the public subnet in availability zone B. | 10.0.2.0/24 |
 | NodesSubnetACidrBlock | The CIDR block to be used by the nodes subnet in availability zone A. | 10.0.11.0/24 |
 | NodesSubnetBCidrBlock | The CIDR block to be used by the nodes subnet in availability zone B. | 10.0.12.0/24 |
-| KubernetesVersion | The version of Kubernetes to use in the EKS cluster specified as major.minor e.g. 1.29 | 1.29 |
+| KubernetesVersion | The version of Kubernetes to use in the EKS cluster specified as major.minor e.g. 1.35 | 1.35 |
 | ClusterDiskSize | The disk size for each node in the EKS node group. | 30 |
 | ClusterNodeSize | The type of nodes to place in the cluster. | m6i.xlarge |
 | NodeGroupMinSize | The minimum size for the EKS node group. | 2 |
