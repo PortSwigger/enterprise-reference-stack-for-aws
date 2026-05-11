@@ -24,9 +24,6 @@ version: 0.1.0
 appVersion: 0.1.0
 
 dependencies:
-- name: aws-efs-csi-driver
-  version: "4.0.0"
-  repository: https://kubernetes-sigs.github.io/aws-efs-csi-driver/
 - name: cluster-autoscaler
   version: "9.55.0"
   repository: https://kubernetes.github.io/autoscaler
